@@ -51,6 +51,32 @@ The downloaded data includes:
 
 Please make sure that you construct the source code & dataset directories structure as below.
 
+```cmd
+mklink /D LINK TARGET
+mklink /D object E:\Datasets\kitti\object
+
+├─dataset
+│  └─kitti
+│      ├─ImageSets
+│      └─object
+│          ├─kitti_gt_database
+│          ├─testing
+│          │  ├─calib
+│          │  ├─image_2
+│          │  ├─image_3
+│          │  ├─velodyne
+│          │  └─velodyne_reduced
+│          └─training
+│              ├─calib
+│              ├─image_2
+│              ├─image_3
+│              ├─label_2
+│              ├─velodyne
+│              └─velodyne_reduced
+├─docs
+└─src
+```
+
 For 3D point cloud preprocessing, please refer to the previous works:
 - [VoxelNet-Pytorch](https://github.com/skyhehe123/VoxelNet-pytorch)
 - [Complex-YOLOv2](https://github.com/AI-liu/Complex-YOLO)

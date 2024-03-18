@@ -33,7 +33,7 @@ class KittiDataset(Dataset):
         assert mode in ['train', 'val', 'test'], 'Invalid mode: {}'.format(mode)
         self.mode = mode
         self.is_test = (self.mode == 'test')
-        sub_folder = 'testing' if self.is_test else 'training'
+        sub_folder = 'object\\' + ('testing' if self.is_test else 'training')
 
         self.multiscale = multiscale
         self.lidar_transforms = lidar_transforms

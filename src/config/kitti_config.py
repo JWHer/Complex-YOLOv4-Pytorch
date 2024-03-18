@@ -1,5 +1,7 @@
 import numpy as np
 
+root_dir = 'E:\Codes\Complex-YOLOv4-Pytorch\dataset\kitti'
+
 class_list = ["Car", "Pedestrian", "Cyclist"]
 
 CLASS_NAME_TO_ID = {
