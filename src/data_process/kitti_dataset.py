@@ -411,7 +411,7 @@ class KittiDataset(Dataset):
             lids = F.interpolate(lids, size=self.img_size,
                                  mode="bilinear", align_corners=True)
         # Unpack cameras
-        cams = cams[0]
+        cams = [torch.stack(cam) for cam in zip(*cams)]
         self.batch_count += 1
 
         return cams, lids, targets
