@@ -40,6 +40,40 @@ class Object3d(object):
         self.score = data[15] if data.__len__() == 16 else -1.0
         self.level_str = None
         self.level = self.get_obj_level()
+    
+    @property
+    def center(self):
+        x = (self.xmax + self.xmin) / 2
+        y = (self.ymax + self.ymin) / 2
+        z = self.h / 2
+        return x, y, z
+
+    def corners(self, wlh_factor: float = 1.0) -> np.ndarray:
+        w, l, h = self.w, self.l, self.h
+
+        # 3D bounding box corners. (Convention: x points forward, y to the left, z up.)
+        x_corners = l / 2 * np.array([1,  1,  1,  1, -1, -1, -1, -1])
+        y_corners = w / 2 * np.array([1, -1, -1,  1,  1, -1, -1,  1])
+        z_corners = h / 2 * np.array([1,  1, -1, -1,  1,  1, -1, -1])
+        corners = np.vstack((x_corners, y_corners, z_corners))
+
+        # Rotate
+        corners = np.dot(self.orientation.rotation_matrix, corners)
+
+        # Translate
+        x, y, z = self.center
+        corners[0, :] = corners[0, :] + x
+        corners[1, :] = corners[1, :] + y
+        corners[2, :] = corners[2, :] + z
+
+        return corners
+    
+    def bottom_corners(self) -> np.ndarray:
+        """
+        Returns the four bottom corners.
+        :return: <np.float: 3, 4>. Bottom corners. First two face forward, last two face backwards.
+        """
+        return self.corners()[:, [2, 3, 7, 6]]
 
     def cls_type_to_id(self, cls_type):
         # Car and Van ==> Car class
@@ -125,8 +159,11 @@ class Calibration(object):
     def __init__(self, calib_filepath):
         calibs = self.read_calib_file(calib_filepath)
         # Projection matrix from rect camera coord to image2 coord
-        self.P = calibs['P2']
-        self.P = np.reshape(self.P, [3, 4])
+        self.P  = calibs['P2']
+        self.P  = np.reshape(self.P, [3, 4])
+        self.P2 = self.P
+        self.P3 = calibs['P3']
+        self.P3 = np.reshape(self.P3, [3,4])
         # Rigid transform from Velodyne coord to reference camera coord
         self.V2C = calibs['Tr_velo2cam']
         self.V2C = np.reshape(self.V2C, [3, 4])

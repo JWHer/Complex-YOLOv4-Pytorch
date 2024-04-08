@@ -14,6 +14,7 @@ import numpy as  np
 
 sys.path.append('../')
 
+from models.lss import LiftSplatShoot, compile_model
 from models.yolo_layer import YoloLayer
 from models.darknet_utils import parse_cfg, print_cfg, load_fc, load_conv_bn, load_conv
 from utils.torch_utils import to_cpu
@@ -144,38 +145,56 @@ class EmptyModule(nn.Module):
 
 # support route shortcut and reorg
 class Darknet(nn.Module):
-    def __init__(self, cfgfile, use_giou_loss):
+    def __init__(self, cfgfile, cfgfile_cam, use_giou_loss):
         super(Darknet, self).__init__()
         self.use_giou_loss = use_giou_loss
-        self.blocks = parse_cfg(cfgfile)
-        self.width = int(self.blocks[0]['width'])
-        self.height = int(self.blocks[0]['height'])
+        blocks = parse_cfg(cfgfile)
+        self.blocks = blocks
+        self.blocks_cam = parse_cfg(cfgfile_cam)
+        self.width = int(blocks[0]['width'])
+        self.height = int(blocks[0]['height'])
 
-        self.models = self.create_network(self.blocks)  # merge conv, bn,leaky
+        self.models = self.create_network(blocks)
+        self.lss = compile_model()
+        self.models_cam = self.create_network(self.blocks_cam)
         self.yolo_layers = [layer for layer in self.models if layer.__class__.__name__ == 'YoloLayer']
 
-        self.loss = self.models[len(self.models) - 1]
+        self.loss = None # self.models[len(self.models) - 1]
 
         self.header = torch.IntTensor([0, 0, 0, 0])
         self.seen = 0
 
-    def forward(self, x, targets=None):
+    def forward(self, cams: tuple, lids: torch.Tensor, targets=None):
         # batch_size, c, h, w
+        img_size = lids.size(2)
+        # ind = -2
+        self.loss = None
+        outputs_lid = dict()
+        outputs_cam = dict()
+        loss = 0.
+
+        x_cam = self.lss(*cams)                                                           # torch.Size([1, 3, 608, 608])
+        # from matplotlib import pyplot as plt
+        # c = x_cam.detach().cpu().numpy()
+        # c = c.squeeze(axis=0).transpose(1,2,0)
+        # plt.imshow(c, vmin=0, vmax=1)
+        x_cam = self._forward_basic(x_cam, outputs_cam, self.blocks_cam, self.models_cam) # torch.Size([1, 1024, 19, 19])
+        x = self._forward_basic(lids, outputs_lid, self.blocks, self.models, x_cam, targets)
+
+        return x
+    
+    def _forward_basic(self, x, outputs, blocks, models, cam = None, targets = None):
         img_size = x.size(2)
         ind = -2
-        self.loss = None
-        outputs = dict()
         loss = 0.
         yolo_outputs = []
-        for block in self.blocks:
+        for block in blocks:
             ind = ind + 1
-            # if ind > 0:
-            #    return x
 
             if block['type'] == 'net':
                 continue
             elif block['type'] in ['convolutional', 'maxpool', 'reorg', 'upsample', 'avgpool', 'softmax', 'connected']:
-                x = self.models[ind](x)
+                x = models[ind](x)
                 outputs[ind] = x
             elif block['type'] == 'route':
                 layers = block['layers'].split(',')
@@ -217,20 +236,28 @@ class Darknet(nn.Module):
                 elif activation == 'relu':
                     x = F.relu(x, inplace=True)
                 outputs[ind] = x
+            elif block['type'] == 'convfuser':
+                x = models[ind](torch.cat([x, cam], dim=1))
+                outputs[ind] = x
             elif block['type'] == 'yolo':
-                x, layer_loss = self.models[ind](x, targets, img_size, self.use_giou_loss)
+                x, layer_loss = models[ind](x, targets, img_size, self.use_giou_loss)
                 loss += layer_loss
                 yolo_outputs.append(x)
             elif block['type'] == 'cost':
                 continue
             else:
                 print('unknown type %s' % (block['type']))
-        yolo_outputs = to_cpu(torch.cat(yolo_outputs, 1))
-
-        return yolo_outputs if targets is None else (loss, yolo_outputs)
+        
+        if yolo_outputs:
+            yolo_outputs = to_cpu(torch.cat(yolo_outputs, 1))
+            return yolo_outputs if targets is None else (loss, yolo_outputs)
+        else:
+            return x
 
     def print_network(self):
-        print_cfg(self.blocks)
+        print_cfg(self.blocks_lid)
+        print_cfg(self.blocks_cam)
+        print_cfg(self.blocks_yolo)
 
     def create_network(self, blocks):
         models = nn.ModuleList()
@@ -244,7 +271,7 @@ class Darknet(nn.Module):
             if block['type'] == 'net':
                 prev_filters = int(block['channels'])
                 continue
-            elif block['type'] == 'convolutional':
+            elif block['type'] in ['convolutional', 'convfuser']:
                 conv_id = conv_id + 1
                 batch_normalize = int(block['batch_normalize'])
                 filters = int(block['filters'])
@@ -256,12 +283,12 @@ class Darknet(nn.Module):
                 model = nn.Sequential()
                 if batch_normalize:
                     model.add_module('conv{0}'.format(conv_id),
-                                     nn.Conv2d(prev_filters, filters, kernel_size, stride, pad, bias=False))
+                                     nn.Conv2d(prev_filters*(2 if block['type']=='convfuser' else 1), filters, kernel_size, stride, pad, bias=False))
                     model.add_module('bn{0}'.format(conv_id), nn.BatchNorm2d(filters))
                     # model.add_module('bn{0}'.format(conv_id), BN2d(filters))
                 else:
                     model.add_module('conv{0}'.format(conv_id),
-                                     nn.Conv2d(prev_filters, filters, kernel_size, stride, pad))
+                                     nn.Conv2d(prev_filters*(2 if block['type']=='convfuser' else 1), filters, kernel_size, stride, pad))
                 if activation == 'leaky':
                     model.add_module('leaky{0}'.format(conv_id), nn.LeakyReLU(0.1, inplace=True))
                 elif activation == 'relu':
@@ -400,7 +427,7 @@ class Darknet(nn.Module):
 
         return models
 
-    def load_weights(self, weightfile):
+    def load_weights(self, weightfile): # TODO fix
         fp = open(weightfile, 'rb')
         header = np.fromfile(fp, count=5, dtype=np.int32)
         self.header = torch.from_numpy(header)

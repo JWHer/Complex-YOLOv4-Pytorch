@@ -195,14 +195,15 @@ def train_one_epoch(train_dataloader, model, optimizer, lr_scheduler, epoch, con
     start_time = time.time()
     for batch_idx, batch_data in enumerate(tqdm(train_dataloader)):
         data_time.update(time.time() - start_time)
-        _, imgs, targets = batch_data
+        cams, lids, targets = batch_data
         global_step = num_iters_per_epoch * (epoch - 1) + batch_idx + 1
 
-        batch_size = imgs.size(0)
+        batch_size = lids.size(0)
 
         targets = targets.to(configs.device, non_blocking=True)
-        imgs = imgs.to(configs.device, non_blocking=True)
-        total_loss, outputs = model(imgs, targets)
+        lids = lids.to(configs.device, non_blocking=True)
+        cams = (cam.to(configs.device, non_blocking=True) for cam in cams)
+        total_loss, outputs = model(cams, lids, targets)
 
         # For torch.nn.DataParallel case
         if (not configs.distributed) and (configs.gpu_idx is None):

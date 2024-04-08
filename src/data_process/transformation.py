@@ -9,6 +9,7 @@ import math
 
 import numpy as np
 import torch
+from PIL import Image
 
 sys.path.append('../')
 
@@ -300,6 +301,40 @@ def box_transform(boxes, tx, ty, tz, r=0, coordinate='lidar'):
                 boxes_corner[idx], tx, ty, tz, ry=r)
 
     return corner_to_center_box3d(boxes_corner, coordinate=coordinate)
+
+
+def img_transform(img, post_rot, post_tran,
+                  resize, resize_dims, crop,
+                  flip, rotate):
+    # adjust image
+    img = img.resize(resize_dims)
+    img = img.crop(crop)
+    if flip:
+        img = img.transpose(method=Image.FLIP_LEFT_RIGHT)
+    img = img.rotate(rotate)
+
+    # post-homography transformation
+    post_rot *= resize
+    post_tran -= torch.Tensor(crop[:2])
+    if flip:
+        A = torch.Tensor([[-1, 0], [0, 1]])
+        b = torch.Tensor([crop[2] - crop[0], 0])
+        post_rot = A.matmul(post_rot)
+        post_tran = A.matmul(post_tran) + b
+    A = get_rot(rotate/180*np.pi)
+    b = torch.Tensor([crop[2] - crop[0], crop[3] - crop[1]]) / 2
+    b = A.matmul(-b) + b
+    post_rot = A.matmul(post_rot)
+    post_tran = A.matmul(post_tran) + b
+
+    return img, post_rot, post_tran
+
+
+def get_rot(h):
+    return torch.Tensor([
+        [np.cos(h), np.sin(h)],
+        [-np.sin(h), np.cos(h)],
+    ])
 
 
 def inverse_rigid_trans(Tr):
