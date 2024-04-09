@@ -34,14 +34,15 @@ def evaluate_mAP(val_loader, model, configs, logger):
         start_time = time.time()
         for batch_idx, batch_data in enumerate(tqdm(val_loader)):
             data_time.update(time.time() - start_time)
-            _, imgs, targets = batch_data
+            cams, lids, targets = batch_data
             # Extract labels
             labels += targets[:, 1].tolist()
             # Rescale x, y, w, h of targets ((box_idx, class, x, y, w, l, im, re))
             targets[:, 2:6] *= configs.img_size
-            imgs = imgs.to(configs.device, non_blocking=True)
+            lids = lids.to(configs.device, non_blocking=True)
+            cams = (cam.to(configs.device, non_blocking=True) for cam in cams)
 
-            outputs = model(imgs)
+            outputs = model(cams, lids)
             outputs = post_processing_v2(outputs, conf_thresh=configs.conf_thresh, nms_thresh=configs.nms_thresh)
 
             sample_metrics += get_batch_statistics_rotated_bbox(outputs, targets, iou_threshold=configs.iou_thresh)
