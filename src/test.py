@@ -170,6 +170,9 @@ if __name__ == '__main__':
                 print('\n[INFO] Press n to see the next sample >>> Press Esc to quit...\n')
                 if cv2.waitKey(0) & 0xFF == 27:
                     break
+            
+            if True:
+                test_dataloader.dataset.set_label(batch_idx, objects_pred)
     if out_cap:
         out_cap.release()
     cv2.destroyAllWindows()
