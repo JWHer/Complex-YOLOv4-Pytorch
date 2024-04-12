@@ -34,7 +34,7 @@ def parse_test_configs():
     parser = argparse.ArgumentParser(description='Demonstration config for Complex YOLO Implementation')
     parser.add_argument('--saved_fn', type=str, default='complexer_yolov4', metavar='FN',
                         help='The name using for saving logs, models,...')
-    parser.add_argument('-a', '--arch', type=str, default='darknet', metavar='ARCH',
+    parser.add_argument('-a', '--arch', type=str, default='bevyolo', metavar='ARCH',
                         help='The name of the model architecture')
     parser.add_argument('--cfgfile', type=str, default='./config/cfg/complex_yolov4.cfg', metavar='PATH',
                         help='The path for cfgfile (only for darknet)')

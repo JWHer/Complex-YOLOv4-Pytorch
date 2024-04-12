@@ -104,7 +104,7 @@ class KittiDataset(Dataset):
         sample_id = int(self.sample_id_list[index])
         lidarData = self.get_lidar(sample_id)
         b = kitti_bev_utils.removePoints(lidarData, cnf.boundary)
-        
+
         rgb_map = kitti_bev_utils.makeBVFeature(
             b, cnf.DISCRETIZATION, cnf.boundary)
         img_file = os.path.join(self.image_dir, '{:06d}.png'.format(sample_id))
@@ -436,3 +436,12 @@ class KittiDataset(Dataset):
         label_file = os.path.join(self.label_dir, '{:06d}.txt'.format(idx))
         # assert os.path.isfile(label_file)
         return kitti_data_utils.read_label(label_file)
+
+    def set_label(self, idx, preds):
+        if not self.is_test:
+            raise Exception("You can set label only in test mode")
+        if not os.path.exists(self.label_dir):
+            os.makedirs(self.label_dir)
+        label_file = os.path.join(self.label_dir, '{:06d}.txt'.format(idx))
+        with open(label_file, 'w') as file:
+            file.writelines([pred.to_kitti_format()+'\n' for pred in preds])

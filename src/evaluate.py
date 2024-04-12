@@ -69,7 +69,7 @@ def parse_eval_configs():
     parser = argparse.ArgumentParser(description='Demonstration config for Complex YOLO Implementation')
     parser.add_argument('--classnames-infor-path', type=str, default='../dataset/kitti/classes_names.txt',
                         metavar='PATH', help='The class names of objects in the task')
-    parser.add_argument('-a', '--arch', type=str, default='darknet', metavar='ARCH',
+    parser.add_argument('-a', '--arch', type=str, default='bevyolo', metavar='ARCH',
                         help='The name of the model architecture')
     parser.add_argument('--cfgfile', type=str, default='./config/cfg/complex_yolov4.cfg', metavar='PATH',
                         help='The path for cfgfile (only for darknet)')

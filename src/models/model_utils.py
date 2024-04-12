@@ -15,13 +15,19 @@ import torch
 sys.path.append('../')
 
 from models.darknet2pytorch import Darknet
+from models.bev_yolo import BEVYolo
 
 
 def create_model(configs):
     """Create model based on architecture name"""
-    if (configs.arch == 'darknet') and (configs.cfgfile is not None):
+    if configs.cfgfile is None:
+        assert False, 'Config file is None'
+    elif (configs.arch == 'darknet'):
         print('using darknet')
         model = Darknet(cfgfile=configs.cfgfile, cfgfile_cam="config/cfg/complex_yolov4_rgb.cfg", use_giou_loss=configs.use_giou_loss)
+    elif (configs.arch == 'bevyolo'):
+        print('using bevyolo')
+        model = BEVYolo(cfgfile=configs.cfgfile, cfgfile_cam="config/cfg/complex_yolov4_rgb.cfg", use_giou_loss=configs.use_giou_loss)
     else:
         assert False, 'Undefined model backbone'
 
