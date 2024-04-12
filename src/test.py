@@ -109,17 +109,20 @@ if __name__ == '__main__':
 
     test_dataloader = create_test_dataloader(configs)
     with torch.no_grad():
-        for batch_idx, (img_paths, imgs_bev) in enumerate(test_dataloader):
-            input_imgs = imgs_bev.to(device=configs.device).float()
+        for batch_idx, batch_data in enumerate(test_dataloader):
+            cams, lids = batch_data
+            lids = lids.to(device=configs.device, non_blocking=True).float()
+            cams = (cam.to(configs.device, non_blocking=True) for cam in cams)
+
             t1 = time_synchronized()
-            outputs = model(input_imgs)
+            outputs = model(cams, lids)
             t2 = time_synchronized()
             detections = post_processing_v2(outputs, conf_thresh=configs.conf_thresh, nms_thresh=configs.nms_thresh)
 
             img_detections = []  # Stores detections for each image index
             img_detections.extend(detections)
 
-            img_bev = imgs_bev.squeeze() * 255
+            img_bev = lids.squeeze().detach().cpu() * 255
             img_bev = img_bev.permute(1, 2, 0).numpy().astype(np.uint8)
             img_bev = cv2.resize(img_bev, (configs.img_size, configs.img_size))
             for detections in img_detections:
@@ -132,8 +135,10 @@ if __name__ == '__main__':
                     # Draw rotated box
                     kitti_bev_utils.drawRotatedBox(img_bev, x, y, w, l, yaw, cnf.colors[int(cls_pred)])
 
-            img_rgb = cv2.imread(img_paths[0])
-            calib = kitti_data_utils.Calibration(img_paths[0].replace(".png", ".txt").replace("image_2", "calib"))
+            img_rgb = test_dataloader.dataset.get_image(batch_idx)
+            # img_rgb = cv2.imread(img_paths[0])
+            calib   = test_dataloader.dataset.get_calib(batch_idx)
+            # calib = kitti_data_utils.Calibration(img_paths[0].replace(".png", ".txt").replace("image_2", "calib"))
             objects_pred = predictions_to_kitti_format(img_detections, calib, img_rgb.shape, configs.img_size)
             img_rgb = show_image_with_boxes(img_rgb, objects_pred, calib, False)
 
@@ -146,8 +151,8 @@ if __name__ == '__main__':
 
             if configs.save_test_output:
                 if configs.output_format == 'image':
-                    img_fn = os.path.basename(img_paths[0])[:-4]
-                    cv2.imwrite(os.path.join(configs.results_dir, '{}.jpg'.format(img_fn)), out_img)
+                    # img_fn = os.path.basename(img_paths[0])[:-4]
+                    cv2.imwrite(os.path.join(configs.results_dir, '{:06d}.png'.format(batch_idx)), out_img)
                 elif configs.output_format == 'video':
                     if out_cap is None:
                         out_cap_h, out_cap_w = out_img.shape[:2]

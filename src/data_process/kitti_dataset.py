@@ -104,17 +104,17 @@ class KittiDataset(Dataset):
         sample_id = int(self.sample_id_list[index])
         lidarData = self.get_lidar(sample_id)
         b = kitti_bev_utils.removePoints(lidarData, cnf.boundary)
+        
         rgb_map = kitti_bev_utils.makeBVFeature(
             b, cnf.DISCRETIZATION, cnf.boundary)
         img_file = os.path.join(self.image_dir, '{:06d}.png'.format(sample_id))
 
-        return img_file, rgb_map
+        return self.get_image_data(index), rgb_map
 
     def load_img_with_targets(self, index):
         """Load images and targets for the training and validation phase"""
 
         sample_id = int(self.sample_id_list[index])
-
         lidarData = self.get_lidar(sample_id)
         objects = self.get_label(sample_id)
         calib = self.get_calib(sample_id)
