@@ -280,7 +280,7 @@ class LiftSplatShoot(nn.Module):
         return x
 
 
-def compile_model():
+def compile_model(grid_conf = None, data_aug_conf = None, outC = 3):
     grid_conf = {
         'xbound': [cfg.boundary["minX"], cfg.boundary["maxX"], cfg.DISCRETIZATION],
         'ybound': [cfg.boundary["minY"], cfg.boundary["maxY"], cfg.DISCRETIZATION],
@@ -294,7 +294,7 @@ def compile_model():
         # 'H': 900, 'W': 1600, ?
         'rand_flip': True,
         'bot_pct_lim': (0.0, 0.22),
-        'cams': ['P1', 'P2'],
+        'cams': ['P2', 'P3'],
         'Ncams': 2,
     }
     outC = 3
