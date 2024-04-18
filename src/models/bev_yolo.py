@@ -15,7 +15,7 @@ import numpy as  np
 
 sys.path.append('../')
 
-from models.lss import LiftSplatShoot, compile_model
+from models.lss import LiftSplatShoot, compile_model, BevEncode
 from models.yolo_layer import YoloLayer
 from models.darknet_utils import parse_cfg, print_cfg, load_fc, load_conv_bn, load_conv
 from utils.torch_utils import to_cpu
@@ -156,7 +156,8 @@ class BEVYolo(nn.Module):
         self.height = int(blocks[0]['height'])
 
         self.models = self.create_network(blocks)
-        self.lss = compile_model()
+        # self.lss = compile_model()
+        self.bev = BevEncode(3,3)
         self.models_cam = self.create_network(self.blocks_cam)
         self.yolo_layers = [layer for layer in self.models if layer.__class__.__name__ == 'YoloLayer']
 
@@ -165,7 +166,7 @@ class BEVYolo(nn.Module):
         self.header = torch.IntTensor([0, 0, 0, 0])
         self.seen = 0
 
-    def forward(self, cams: tuple, lids: torch.Tensor, targets=None):
+    def forward(self, cams, lids: torch.Tensor, targets=None):
         # batch_size, c, h, w
         img_size = lids.size(2)
         # ind = -2
@@ -174,11 +175,12 @@ class BEVYolo(nn.Module):
         outputs_cam = dict()
         loss = 0.
 
-        x_cam = self.lss(*cams)                                                           # torch.Size([1, 3, 608, 608])
+        # x_cam = self.lss(*cams)                                                           # torch.Size([1, 3, 608, 608])
+        x_cam = self.bev(cams)
         if False:
             c = x_cam.detach().cpu().numpy()
             c = c.squeeze(axis=0).transpose(1,2,0)*255
-            cv2.imshow('LSS', c)
+            cv2.imshow('bev', c)
         x_cam = self._forward_basic(x_cam, outputs_cam, self.blocks_cam, self.models_cam) # torch.Size([1, 1024, 19, 19])
         x = self._forward_basic(lids, outputs_lid, self.blocks, self.models, x_cam, targets)
 

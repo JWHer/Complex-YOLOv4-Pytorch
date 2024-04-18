@@ -40,7 +40,7 @@ def evaluate_mAP(val_loader, model, configs, logger):
             # Rescale x, y, w, h of targets ((box_idx, class, x, y, w, l, im, re))
             targets[:, 2:6] *= configs.img_size
             lids = lids.to(configs.device, non_blocking=True)
-            cams = (cam.to(configs.device, non_blocking=True) for cam in cams)
+            cams = cams.to(configs.device, non_blocking=True)
 
             outputs = model(cams, lids)
             outputs = post_processing_v2(outputs, conf_thresh=configs.conf_thresh, nms_thresh=configs.nms_thresh)

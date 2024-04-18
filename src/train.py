@@ -202,7 +202,7 @@ def train_one_epoch(train_dataloader, model, optimizer, lr_scheduler, epoch, con
 
         targets = targets.to(configs.device, non_blocking=True)
         lids = lids.to(configs.device, non_blocking=True)
-        cams = (cam.to(configs.device, non_blocking=True) for cam in cams)
+        cams = cams.to(configs.device, non_blocking=True)
         total_loss, outputs = model(cams, lids, targets)
 
         # For torch.nn.DataParallel case

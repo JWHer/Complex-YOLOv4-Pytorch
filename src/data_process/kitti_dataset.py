@@ -146,11 +146,12 @@ class KittiDataset(Dataset):
 
         if self.aug_transforms is not None:
             rgb_map, targets = self.aug_transforms(rgb_map, targets)
-        if True:
+        if False:
             binimg = self.get_binimg(targets)  # TODO fill binimg
             # return self.get_image_data(index)+(binimg,), np.ndarray(0), np.ndarray(0)
             return (self.get_bev_data(index), binimg), np.ndarray((1,1)), np.ndarray((1,1))
-        return self.get_image_data(index), rgb_map, targets
+        # return self.get_image_data(index), rgb_map, targets
+        return self.get_bev_data(index), rgb_map, targets
 
     def get_bev_data(self, index):
         sample_id = int(self.sample_id_list[index])
@@ -406,23 +407,24 @@ class KittiDataset(Dataset):
     def collate_fn(self, batch):
         # tuple, torch.Size([3, 608, 608]), torch.Size([10, 8])
         cams, lids, targets = list(zip(*batch))
-        # # Remove empty placeholder targets
-        # targets = [boxes for boxes in targets if boxes is not None]
-        # # Add sample index to targets
-        # for i, boxes in enumerate(targets):
-        #     boxes[:, 0] = i
-        # targets = torch.cat(targets, 0)
-        # # Selects new image size every tenth batch
-        # if (self.batch_count % 10 == 0) and self.multiscale and (not self.mosaic):
-        #     self.img_size = random.choice(
-        #         range(self.min_size, self.max_size + 1, 32))
-        # # Resize lidars to input shape
-        # lids = torch.stack(lids)
-        # if self.img_size != cnf.BEV_WIDTH:
-        #     lids = F.interpolate(lids, size=self.img_size,
-        #                          mode="bilinear", align_corners=True)
+        # Remove empty placeholder targets
+        targets = [boxes for boxes in targets if boxes is not None]
+        # Add sample index to targets
+        for i, boxes in enumerate(targets):
+            boxes[:, 0] = i
+        targets = torch.cat(targets, 0)
+        # Selects new image size every tenth batch
+        if (self.batch_count % 10 == 0) and self.multiscale and (not self.mosaic):
+            self.img_size = random.choice(
+                range(self.min_size, self.max_size + 1, 32))
+        # Resize lidars to input shape
+        lids = torch.stack(lids)
+        if self.img_size != cnf.BEV_WIDTH:
+            lids = F.interpolate(lids, size=self.img_size,
+                                 mode="bilinear", align_corners=True)
         # Unpack cameras
-        cams = [torch.stack(cam) for cam in zip(*cams)]
+        # cams = [torch.stack(cam) for cam in zip(*cams)]
+        cams = torch.stack(cams)
         self.batch_count += 1
 
         return cams, lids, targets
