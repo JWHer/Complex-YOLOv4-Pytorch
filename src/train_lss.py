@@ -11,7 +11,7 @@ sys.path.append('./')
 import config.kitti_config as cfg
 from config.train_config import parse_train_configs
 from models.lss import compile_model, BevEncode
-from utils.lss import SimpleLoss, get_batch_iou, get_val_info
+from utils.lss import SimpleLoss, get_batch_iou, get_val_info, bev_val_info
 from data_process.kitti_dataloader import create_train_dataloader, create_val_dataloader
 
 
@@ -111,7 +111,7 @@ def train(nepochs=10000,
                 _, _, iou = get_batch_iou(preds, binimgs)
 
             if counter % val_step == 0:
-                val_info = get_val_info(model, valloader, loss_fn, device)
+                val_info = bev_val_info(model, valloader, loss_fn, device)
                 print('VAL', val_info)
 
             if counter % val_step == 0:
