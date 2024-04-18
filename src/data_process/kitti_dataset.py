@@ -51,12 +51,12 @@ class KittiDataset(Dataset):
         self.lidar_transforms = lidar_transforms
         self.aug_transforms = aug_transforms
         self.data_aug_conf = {
-            'resize_lim': (0.193, 0.225),
-            'final_dim': (128, 352),
-            'rot_lim': (-5.4, 5.4),
+            'resize_lim': (1.0, 1.0),  # (0.193, 0.225),
+            'final_dim': (608, 608),  # (128, 352),
+            'rot_lim': (0.0, 0.0),  # (-5.4, 5.4),
             'H': 375, 'W': 1242,    # 370 x 1224
             'rand_flip': True,
-            'bot_pct_lim': (0.0, 0.22),
+            'bot_pct_lim': (0.0, 0.0),  # (0.0, 0.22),
             'cams': ['P2', 'P3'],
             'Ncams': 2,
         }
@@ -70,6 +70,7 @@ class KittiDataset(Dataset):
 
         self.lidar_dir = os.path.join(self.dataset_dir, sub_folder, "velodyne")
         self.image_dir = os.path.join(self.dataset_dir, sub_folder, "image_2")
+        self.bev_dir   = os.path.join(self.dataset_dir, sub_folder, "bev_2")
         self.calib_dir = os.path.join(self.dataset_dir, sub_folder, "calib")
         self.label_dir = os.path.join(self.dataset_dir, sub_folder, "label_2")
         split_txt_path = os.path.join(
@@ -146,9 +147,17 @@ class KittiDataset(Dataset):
         if self.aug_transforms is not None:
             rgb_map, targets = self.aug_transforms(rgb_map, targets)
         if True:
-            binimg = self.get_binimg(targets) # TODO fill binimg
-            return self.get_image_data(index)+(binimg,), np.ndarray(0), np.ndarray(0)
+            binimg = self.get_binimg(targets)  # TODO fill binimg
+            # return self.get_image_data(index)+(binimg,), np.ndarray(0), np.ndarray(0)
+            return (self.get_bev_data(index), binimg), np.ndarray((1,1)), np.ndarray((1,1))
         return self.get_image_data(index), rgb_map, targets
+
+    def get_bev_data(self, index):
+        sample_id = int(self.sample_id_list[index])
+        img_file = os.path.join(
+            self.bev_dir, '{:06d}.png'.format(sample_id))
+        img = Image.open(img_file)
+        return normalize_img(img)
 
     def get_image_data(self, index):
         imgs = []
@@ -220,7 +229,6 @@ class KittiDataset(Dataset):
 
         for cls_id, x, y, w, l, yaw in targets[:, 1:7].numpy():
             # Draw rotated box
-            # TODO fill box with cv2.fillPoly()
             kitti_bev_utils.drawFilledRotatedBox(
                 binimg, x, y, w, l, yaw, cnf.colors[int(cls_id)])
 
@@ -396,7 +404,8 @@ class KittiDataset(Dataset):
         return False
 
     def collate_fn(self, batch):
-        cams, lids, targets = list(zip(*batch)) # tuple, torch.Size([3, 608, 608]), torch.Size([10, 8])
+        # tuple, torch.Size([3, 608, 608]), torch.Size([10, 8])
+        cams, lids, targets = list(zip(*batch))
         # # Remove empty placeholder targets
         # targets = [boxes for boxes in targets if boxes is not None]
         # # Add sample index to targets

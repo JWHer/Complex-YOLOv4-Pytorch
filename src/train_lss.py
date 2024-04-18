@@ -10,7 +10,7 @@ sys.path.append('./')
 
 import config.kitti_config as cfg
 from config.train_config import parse_train_configs
-from models.lss import compile_model
+from models.lss import compile_model, BevEncode
 from utils.lss import SimpleLoss, get_batch_iou, get_val_info
 from data_process.kitti_dataloader import create_train_dataloader, create_val_dataloader
 
@@ -41,6 +41,8 @@ def train(nepochs=10000,
           ):
     configs = parse_train_configs()
     configs.distributed = False
+    gpuid = configs.gpu_idx
+
     grid_conf = {
         'xbound': xbound,
         'ybound': ybound,
@@ -48,25 +50,23 @@ def train(nepochs=10000,
         'dbound': dbound,
     }
     data_aug_conf = {
-        'resize_lim': resize_lim,
+        # 'resize_lim': resize_lim,
         'final_dim': final_dim,
-        'rot_lim': rot_lim,
+        # 'rot_lim': rot_lim,
         # 'H': H, 'W': W,
-        'rand_flip': rand_flip,
-        'bot_pct_lim': bot_pct_lim,
-        'cams': ['P2', 'P3'],
-        'Ncams': 2,
+        # 'rand_flip': rand_flip,
+        # 'bot_pct_lim': bot_pct_lim,
+        # 'cams': ['P2', 'P3'],
+        # 'Ncams': 2,
     }
-    # trainloader, valloader = compile_data(version, dataroot, data_aug_conf=data_aug_conf,
-    #                                       grid_conf=grid_conf, bsz=bsz, nworkers=nworkers,
-    #                                       parser_name='segmentationdata')
     trainloader, _ = create_train_dataloader(configs)
     valloader = create_val_dataloader(configs)
 
     device = torch.device(
         'cpu') if gpuid < 0 else torch.device(f'cuda:{gpuid}')
 
-    model = compile_model(grid_conf, data_aug_conf, outC=3)
+    # model = compile_model(grid_conf, data_aug_conf, outC=3)
+    model = BevEncode(3, 3)
     model.to(device)
 
     opt = torch.optim.Adam(model.parameters(), lr=lr,
@@ -84,16 +84,18 @@ def train(nepochs=10000,
         np.random.seed()
         for batchi, batch_data in enumerate(tqdm(trainloader)):
             cams, _, _ = batch_data
-            imgs, rots, trans, intrins, post_rots, post_trans, binimgs = cams
+            # imgs, rots, trans, intrins, post_rots, post_trans, binimgs = cams
+            imgs, binimgs = cams
             t0 = time()
             opt.zero_grad()
-            preds = model(imgs.to(device),
-                          rots.to(device),
-                          trans.to(device),
-                          intrins.to(device),
-                          post_rots.to(device),
-                          post_trans.to(device),
-                          )
+            # preds = model(imgs.to(device),
+            #               rots.to(device),
+            #               trans.to(device),
+            #               intrins.to(device),
+            #               post_rots.to(device),
+            #               post_trans.to(device),
+            #               )
+            preds = model(imgs.to(device))
             binimgs = binimgs.to(device)
             loss = loss_fn(preds, binimgs)
             loss.backward()
