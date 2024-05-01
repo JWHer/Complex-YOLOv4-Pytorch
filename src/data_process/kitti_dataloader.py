@@ -142,10 +142,16 @@ if __name__ == '__main__':
     print('\n\nPress n to see the next sample >>> Press Esc to quit...')
 
     for batch_i, (img_files, imgs, targets) in enumerate(dataloader):
+        # _, imgs, _ = dataloader.dataset.load_img_with_targets(6) # show image with exact id
+        # sample_id = 6
+        sample_id = int(dataloader.dataset.sample_id_list[batch_i])
         if not (configs.mosaic and configs.show_train_data):
-            img_file = img_files[0]
-            img_rgb = cv2.imread(img_file)
-            calib = kitti_data_utils.Calibration(img_file.replace(".png", ".txt").replace("image_2", "calib"))
+            # img_file = img_files[0]
+            # img_rgb = cv2.imread(img_file)
+            img_rgb = dataloader.dataset.get_image(sample_id)
+
+            # calib = kitti_data_utils.Calibration(img_file.replace(".png", ".txt").replace("image_2", "calib"))
+            calib = dataloader.dataset.get_calib(sample_id)
             objects_pred = invert_target(targets[:, 1:], calib, img_rgb.shape, RGB_Map=None)
             img_rgb = show_image_with_boxes(img_rgb, objects_pred, calib, False)
 
@@ -173,7 +179,7 @@ if __name__ == '__main__':
         else:
             out_img = merge_rgb_to_bev(img_rgb, img_bev, output_width=configs.output_width)
             if configs.save_img:
-                fn = os.path.basename(img_file)
+                fn = os.path.basename(img_file) # FIXME img_file does not exist. you should use own name
                 cv2.imwrite(os.path.join(configs.saved_dir, fn), out_img)
             else:
                 cv2.imshow('single_sample', out_img)

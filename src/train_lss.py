@@ -67,6 +67,11 @@ def train(nepochs=10000,
 
     # model = compile_model(grid_conf, data_aug_conf, outC=3)
     model = BevEncode(3, 3)
+    # load weight from a checkpoint
+    if configs.pretrained_path is not None:
+        assert os.path.isfile(configs.pretrained_path), "=> no checkpoint found at '{}'".format(configs.pretrained_path)
+        model.load_state_dict(torch.load(configs.pretrained_path, map_location='cpu'))
+        print('loaded pretrained model at {}'.format(configs.pretrained_path))
     model.to(device)
 
     opt = torch.optim.Adam(model.parameters(), lr=lr,

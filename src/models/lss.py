@@ -271,7 +271,9 @@ class LiftSplatShoot(nn.Module):
         x = self.get_cam_feats(x)
 
         x = self.voxel_pooling(geom, x)
-
+        # import cv2; import numpy as np;
+        # t = x[0].detach().cpu().numpy(); t=np.sum(t, axis=0); t = t.reshape((1,)+t.shape)
+        # cv2.imwrite('voxel.jpeg', t.transpose(1,2,0)*255)
         return x
 
     def forward(self, x, rots, trans, intrins, post_rots, post_trans):
